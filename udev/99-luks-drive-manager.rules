@@ -1,0 +1,14 @@
+# LUKS+LVM Drive Manager — udev auto-mount dispatch
+#
+# Fires when a block device with a LUKS filesystem is attached. The dispatcher
+# reads /etc/luks-drive-manager/drives.conf and starts
+# luks-drive-manager@<name>.service only if the matching drive has
+# auto_mount=yes in the config.
+#
+# Install to: /etc/udev/rules.d/99-luks-drive-manager.rules
+# Reload with: sudo udevadm control --reload && sudo udevadm trigger
+#
+# Unplugging is left to the user — this rule does not fire on removal.
+
+SUBSYSTEM=="block", ACTION=="add", ENV{ID_FS_TYPE}=="crypto_LUKS", ENV{ID_FS_UUID}=="?*", \
+    RUN+="/usr/local/bin/manage_drive.sh udev-trigger %E{ID_FS_UUID}"

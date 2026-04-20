@@ -1,0 +1,15 @@
+[Unit]
+Description=LUKS+LVM drive manager: mount %i
+Documentation=file:/usr/local/share/luks-drive-manager/README.md
+After=local-fs.target cryptsetup.target lvm2-monitor.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/manage_drive.sh mount %i
+ExecStop=/usr/local/bin/manage_drive.sh unmount %i
+TimeoutStartSec=120
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,40 @@
+# LUKS+LVM Drive Manager — drives configuration
+#
+# Each drive is registered with add_drive, using key=value arguments.
+# This file is sourced by manage_drive.sh, so it must be valid bash.
+#
+# Keys:
+#   name         required  short handle used on the CLI (e.g. `manage-drive mount disk1`)
+#   uuid         required  LUKS partition UUID (from `blkid` or `ls /dev/disk/by-uuid/`)
+#   mount_point  required  absolute path where the filesystem is mounted
+#   luks_name    optional  /dev/mapper name for the opened LUKS device (defaults to luks-<name>)
+#   vg_name      optional  LVM volume group name (leave unset for plain LUKS without LVM)
+#   lv_name      optional  LVM logical volume name (required if vg_name is set)
+#   auto_mount   optional  yes|no — when yes, udev+systemd will auto-mount on attach (default: no)
+#
+# Additional drop-in files may be placed in conf.d/*.conf (same syntax).
+
+# ----- Example 1: LUKS with LVM on top, auto-mounted on attach -----
+# add_drive \
+#     name=disk1 \
+#     uuid=f0df5c91-de1c-42a3-8d16-65ca4304e3a6 \
+#     mount_point=/media/dave/disk1 \
+#     vg_name=my_vg \
+#     lv_name=my_lv \
+#     auto_mount=yes
+
+# ----- Example 2: plain LUKS, no LVM, manual mount -----
+# add_drive \
+#     name=backup_ssd \
+#     uuid=11111111-2222-3333-4444-555555555555 \
+#     mount_point=/mnt/backup \
+#     auto_mount=no
+
+# ----- Example 3: custom luks mapper name -----
+# add_drive \
+#     name=photos \
+#     uuid=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee \
+#     luks_name=photos_crypt \
+#     mount_point=/mnt/photos \
+#     vg_name=photos_vg \
+#     lv_name=photos_lv
