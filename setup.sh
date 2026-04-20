@@ -17,6 +17,7 @@ BIN_PREFIX=""
 DO_SYSTEMD=1
 DO_UDEV=1
 DO_UNINSTALL=0
+DO_UPDATE=0
 ASSUME_YES=0
 
 if [[ -t 1 ]]; then
@@ -42,6 +43,9 @@ Options:
   --no-systemd    Skip installing the systemd service.
   --no-udev       Skip installing the udev rule.
   --uninstall     Remove installed files. Preserves $CONFIG_DIR.
+  --update        Refresh an existing install in place (auto-detects prefix,
+                  skips prompts, only touches files that were already
+                  installed). Use this after 'git pull'.
   --yes, -y       Assume yes for all prompts.
   --help, -h      Show this help.
 
@@ -58,6 +62,7 @@ parse_args() {
             --no-systemd) DO_SYSTEMD=0; shift ;;
             --no-udev)    DO_UDEV=0; shift ;;
             --uninstall)  DO_UNINSTALL=1; shift ;;
+            --update)     DO_UPDATE=1; shift ;;
             --yes|-y)     ASSUME_YES=1; shift ;;
             --help|-h)    usage; exit 0 ;;
             *)            die "unknown argument: $1 (try: $0 --help)" ;;
@@ -250,10 +255,67 @@ do_uninstall() {
     log_info "uninstall complete. $CONFIG_DIR/ was preserved."
 }
 
+detect_installed_prefix() {
+    # Echoes the directory holding the installed manage_drive.sh, or nothing.
+    local candidates=(
+        "/usr/local/bin"
+        "/usr/bin"
+        "/bin"
+    )
+    local c
+    for c in "${candidates[@]}"; do
+        [[ -f "$c/manage_drive.sh" ]] && { printf '%s\n' "$c"; return 0; }
+    done
+    return 1
+}
+
+do_update() {
+    require_root
+
+    if [[ -n "$BIN_PREFIX" ]]; then
+        [[ -f "$BIN_PREFIX/manage_drive.sh" ]] || die "no existing install at $BIN_PREFIX/manage_drive.sh"
+    else
+        BIN_PREFIX="$(detect_installed_prefix)" \
+            || die "no existing install found in /usr/local/bin, /usr/bin, or /bin — run 'sudo $0' first, or pass --prefix"
+    fi
+
+    log_info "refreshing install at $BIN_PREFIX"
+
+    # Script: always refresh.
+    install -m 0755 "$SCRIPT_SRC" "$BIN_PREFIX/manage_drive.sh"
+    log_info "updated $BIN_PREFIX/manage_drive.sh"
+    if [[ ! -L "$BIN_PREFIX/manage-drive" ]]; then
+        ln -sf manage_drive.sh "$BIN_PREFIX/manage-drive"
+        log_info "symlink:  $BIN_PREFIX/manage-drive -> manage_drive.sh"
+    fi
+
+    # Systemd / udev: only refresh if already installed.
+    if [[ -f "$SERVICE_DEST" ]]; then
+        install_systemd
+    else
+        log_info "systemd unit not installed — skipping"
+    fi
+    if [[ -f "$UDEV_DEST" ]]; then
+        install_udev
+    else
+        log_info "udev rule not installed — skipping"
+    fi
+
+    # Config dir: keep any existing example up to date, don't overwrite user configs.
+    if [[ -d "$CONFIG_DIR" && -f "$EXAMPLE_SRC" ]]; then
+        install -m 0644 "$EXAMPLE_SRC" "$CONFIG_DIR/drives.conf.example"
+        log_info "updated $CONFIG_DIR/drives.conf.example"
+    fi
+
+    log_info "update complete."
+}
+
 main() {
     parse_args "$@"
     if (( DO_UNINSTALL == 1 )); then
         do_uninstall
+    elif (( DO_UPDATE == 1 )); then
+        do_update
     else
         do_install
     fi

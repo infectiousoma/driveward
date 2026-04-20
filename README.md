@@ -37,8 +37,20 @@ or a custom path. Non-interactive:
 ```bash
 sudo ./setup.sh --prefix /usr/local/bin --yes
 sudo ./setup.sh --prefix /usr/bin --no-udev      # skip udev integration
+sudo ./setup.sh --update                          # refresh after 'git pull'
 sudo ./setup.sh --uninstall                       # remove everything, keep configs
 ```
+
+After `git pull`, push the new code into `/usr/local/bin/` (or wherever you
+installed) with:
+
+```bash
+sudo ./setup.sh --update
+```
+
+`--update` auto-detects the existing install prefix and only refreshes files
+that were already in place — if you installed without systemd, it won't try
+to add systemd on update.
 
 The installer also drops `drives.conf.example` into `/etc/luks-drive-manager/`
 for reference.
